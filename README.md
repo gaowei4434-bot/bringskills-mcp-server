@@ -1,13 +1,13 @@
-# @bringskills/mcp-server
+# bringskills-mcp-server
 
 MCP (Model Context Protocol) Server for [BringSkills](https://www.bringskills.com) - the AI Skills Marketplace.
 
-**One purchase, use across all AI agents.** Buy skills once and use them with Claude Code, Cursor, Codex, and 10+ more AI agents.
+**One purchase, use across all AI agents.** Buy skills once and use them with Claude Code, Cursor, Codex, and more AI agents.
 
 ## Installation
 
 ```bash
-npm install -g @bringskills/mcp-server
+npm install -g bringskills-mcp-server
 ```
 
 ## Quick Start
@@ -27,7 +27,7 @@ Add to `~/.claude/mcp.json`:
   "mcpServers": {
     "bringskills": {
       "command": "npx",
-      "args": ["-y", "@bringskills/mcp-server"],
+      "args": ["-y", "bringskills-mcp-server"],
       "env": {
         "BRINGSKILLS_API_KEY": "sk-bring-xxx"
       }
@@ -45,7 +45,7 @@ Add to Cursor MCP settings:
   "mcpServers": {
     "bringskills": {
       "command": "npx",
-      "args": ["-y", "@bringskills/mcp-server"],
+      "args": ["-y", "bringskills-mcp-server"],
       "env": {
         "BRINGSKILLS_API_KEY": "sk-bring-xxx"
       }
@@ -63,7 +63,7 @@ Add to `~/.codex/mcp.json`:
   "mcpServers": {
     "bringskills": {
       "command": "npx",
-      "args": ["-y", "@bringskills/mcp-server"],
+      "args": ["-y", "bringskills-mcp-server"],
       "env": {
         "BRINGSKILLS_API_KEY": "sk-bring-xxx"
       }
@@ -75,7 +75,7 @@ Add to `~/.codex/mcp.json`:
 #### OpenClaw
 
 ```bash
-openclaw skill install @bringskills/mcp-server
+openclaw skill install bringskills-mcp-server
 export BRINGSKILLS_API_KEY="sk-bring-xxx"
 ```
 
@@ -122,7 +122,7 @@ Once configured, your AI agent can use BringSkills naturally:
 You can also use the client directly in your code:
 
 ```typescript
-import { BringSkillsClient } from '@bringskills/mcp-server';
+import { BringSkillsClient } from 'bringskills-mcp-server';
 
 const client = new BringSkillsClient('sk-bring-xxx');
 
@@ -140,21 +140,30 @@ const mySkills = await client.getMySkills();
 
 ## Supported AI Agents
 
+### MCP-Compatible Agents (Native Support)
+
 | Agent | Configuration |
 |-------|---------------|
 | Claude Code | MCP via `~/.claude/mcp.json` |
 | Cursor | MCP via settings |
 | Codex CLI | MCP via `~/.codex/mcp.json` |
 | OpenClaw | Native skill install |
-| Windsurf | Cascade external tools |
-| Aider | HTTP API via config |
-| Continue | Custom commands |
-| Cody | Custom commands |
-| GitHub Copilot | HTTP API code generation |
-| Tabnine | Chat code generation |
-| Amazon Q | Lambda integration |
-| JetBrains AI | Chat code generation |
-| Replit AI | Secrets + Chat |
+
+### Other Agents (HTTP API)
+
+For agents that don't support MCP, use the BringSkills HTTP API directly:
+
+| Agent | Integration Method |
+|-------|-------------------|
+| Windsurf | Use `bringskills-windsurf` package |
+| Aider | Use `bringskills-aider` package |
+| Continue | Use `bringskills-continue` package |
+| Cody | Use `bringskills-cody` package |
+| GitHub Copilot | Generate API call code |
+| Tabnine | Generate API call code |
+| Amazon Q | Use `bringskills-aws` package |
+| JetBrains AI | Generate API call code |
+| Replit AI | Use Secrets + API calls |
 
 ## Links
 
