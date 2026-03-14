@@ -43,7 +43,8 @@ class BringSkillsClient {
         if (params?.offset)
             searchParams.set('offset', params.offset.toString());
         const query = searchParams.toString();
-        return this.request(`/api/v1/skills${query ? `?${query}` : ''}`);
+        const result = await this.request(`/api/v1/skills${query ? `?${query}` : ''}`);
+        return { skills: result.items || [], total: result.total };
     }
     /**
      * Get details of a specific skill
@@ -65,7 +66,7 @@ class BringSkillsClient {
      */
     async getMySkills() {
         const response = await this.request('/api/v1/orders');
-        return response.orders || [];
+        return response.items || [];
     }
     /**
      * Acquire a free skill
@@ -80,7 +81,7 @@ class BringSkillsClient {
      * List skill categories
      */
     async getCategories() {
-        return this.request('/api/v1/categories');
+        return this.request('/api/v1/skills/categories');
     }
     /**
      * Search skills by query

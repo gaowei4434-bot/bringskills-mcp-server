@@ -99,7 +99,8 @@ export class BringSkillsClient {
     if (params?.offset) searchParams.set('offset', params.offset.toString());
 
     const query = searchParams.toString();
-    return this.request(`/api/v1/skills${query ? `?${query}` : ''}`);
+    const result = await this.request<{ items: Skill[]; total: number }>(`/api/v1/skills${query ? `?${query}` : ''}`);
+    return { skills: result.items || [], total: result.total };
   }
 
   /**
@@ -126,8 +127,8 @@ export class BringSkillsClient {
    * Get user's purchased/acquired skills
    */
   async getMySkills(): Promise<UserSkill[]> {
-    const response = await this.request<{ orders: UserSkill[] }>('/api/v1/orders');
-    return response.orders || [];
+    const response = await this.request<{ items: UserSkill[] }>('/api/v1/orders');
+    return response.items || [];
   }
 
   /**
@@ -144,7 +145,7 @@ export class BringSkillsClient {
    * List skill categories
    */
   async getCategories(): Promise<{ categories: { slug: string; name: string; count: number }[] }> {
-    return this.request('/api/v1/categories');
+    return this.request('/api/v1/skills/categories');
   }
 
   /**
