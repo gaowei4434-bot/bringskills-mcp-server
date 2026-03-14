@@ -26,6 +26,18 @@ export interface SkillExecuteResult {
         tokens_used: number;
         execution_time_ms: number;
     };
+    agent_confirmation_required?: AgentConfirmationInfo;
+}
+export interface AgentConfirmationInfo {
+    detected: string | null;
+    confidence: number | null;
+    message: string;
+    confirm_url: string;
+    options: AgentOption[];
+}
+export interface AgentOption {
+    value: string;
+    label: string;
 }
 export interface UserSkill {
     skill_id: string;
@@ -86,5 +98,18 @@ export declare class BringSkillsClient {
      * Check if API key is valid
      */
     validateApiKey(): Promise<boolean>;
+    /**
+     * Confirm agent type binding
+     */
+    confirmAgentType(agentType: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    /**
+     * Get list of supported agents
+     */
+    getSupportedAgents(): Promise<{
+        agents: AgentOption[];
+    }>;
 }
 //# sourceMappingURL=client.d.ts.map

@@ -9,10 +9,13 @@ const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const client_js_1 = require("./client.js");
+// 用于跟踪是否已经确认过 Agent
+let agentConfirmed = false;
 class BringSkillsMCPServer {
     server;
     client;
     skillsCache = new Map();
+    pendingConfirmation = null;
     constructor(apiKey) {
         this.client = new client_js_1.BringSkillsClient(apiKey);
         this.server = new index_js_1.Server({
@@ -115,6 +118,24 @@ class BringSkillsMCPServer {
                             properties: {},
                         },
                     },
+                    {
+                        name: 'bringskills_confirm_agent',
+                        description: 'Confirm your AI agent type for optimized skill output. Call this when prompted after executing a skill.',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                agent_type: {
+                                    type: 'string',
+                                    description: 'Your agent type (e.g., claude-code, cursor, codex, openclaw, windsurf, aider, continue, cody, github-copilot, tabnine, amazon-q, jetbrains-ai, replit-ai, generic)',
+                                },
+                                confirmed: {
+                                    type: 'boolean',
+                                    description: 'Set to true to confirm the detected agent, or false to specify a different one',
+                                },
+                            },
+                            required: ['confirmed'],
+                        },
+                    },
                 ],
             };
         });
@@ -135,6 +156,8 @@ class BringSkillsMCPServer {
                         return await this.handleAcquireFree(args);
                     case 'bringskills_categories':
                         return await this.handleCategories();
+                    case 'bringskills_confirm_agent':
+                        return await this.handleConfirmAgent(args);
                     default:
                         throw new types_js_1.McpError(types_js_1.ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
                 }
@@ -222,6 +245,35 @@ class BringSkillsMCPServer {
                 isError: true,
             };
         }
+        // 检查是否需要确认 Agent 类型
+        if (result.agent_confirmation_required && !agentConfirmed) {
+            this.pendingConfirmation = result.agent_confirmation_required;
+            const detected = result.agent_confirmation_required.detected;
+            const options = result.agent_confirmation_required.options;
+            let confirmMessage;
+            if (detected) {
+                confirmMessage = `🔔 **Agent 确认**\n\n${result.agent_confirmation_required.message}\n\n` +
+                    `请使用 bringskills_confirm_agent 工具确认：\n` +
+                    `- 如果是 ${detected}，调用: bringskills_confirm_agent(confirmed=true)\n` +
+                    `- 如果不是，调用: bringskills_confirm_agent(confirmed=false, agent_type="你的agent类型")\n\n` +
+                    `支持的 Agent 类型：\n${options.map(o => `  • ${o.value} - ${o.label}`).join('\n')}`;
+            }
+            else {
+                confirmMessage = `🔔 **Agent 确认**\n\n${result.agent_confirmation_required.message}\n\n` +
+                    `请使用 bringskills_confirm_agent 工具选择你的 Agent 类型：\n` +
+                    `bringskills_confirm_agent(confirmed=false, agent_type="你的agent类型")\n\n` +
+                    `支持的 Agent 类型：\n${options.map(o => `  • ${o.value} - ${o.label}`).join('\n')}`;
+            }
+            // 返回执行结果 + 确认提示
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: `${result.output || 'Skill executed successfully'}\n\n---\n\n${confirmMessage}`,
+                    },
+                ],
+            };
+        }
         return {
             content: [
                 {
@@ -279,6 +331,79 @@ class BringSkillsMCPServer {
                 },
             ],
         };
+    }
+    async handleConfirmAgent(args) {
+        let agentTypeToConfirm;
+        if (args.confirmed) {
+            // 用户确认检测到的 Agent
+            if (!this.pendingConfirmation?.detected) {
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'No agent was detected. Please specify your agent type using: bringskills_confirm_agent(confirmed=false, agent_type="your-agent-type")',
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+            agentTypeToConfirm = this.pendingConfirmation.detected;
+        }
+        else {
+            // 用户指定不同的 Agent
+            if (!args.agent_type) {
+                // 列出可选项
+                const agents = this.pendingConfirmation?.options || [];
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: `Please specify your agent type. Available options:\n\n${agents.map(a => `• ${a.value} - ${a.label}`).join('\n')}\n\nUsage: bringskills_confirm_agent(confirmed=false, agent_type="your-agent-type")`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+            agentTypeToConfirm = args.agent_type;
+        }
+        try {
+            const result = await this.client.confirmAgentType(agentTypeToConfirm);
+            if (result.success) {
+                agentConfirmed = true;
+                this.pendingConfirmation = null;
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: `✅ ${result.message}\n\n你的 API Key 已绑定到 ${agentTypeToConfirm}，以后所有技能输出都会针对此 Agent 优化。`,
+                        },
+                    ],
+                };
+            }
+            else {
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: `Failed to confirm agent: ${result.message}`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: `Error confirming agent: ${message}`,
+                    },
+                ],
+                isError: true,
+            };
+        }
     }
     async run() {
         const transport = new stdio_js_1.StdioServerTransport();

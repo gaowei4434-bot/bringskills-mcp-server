@@ -6,6 +6,7 @@ export declare class BringSkillsMCPServer {
     private server;
     private client;
     private skillsCache;
+    private pendingConfirmation;
     constructor(apiKey: string);
     private setupHandlers;
     private handleSearch;
@@ -14,6 +15,7 @@ export declare class BringSkillsMCPServer {
     private handleMySkills;
     private handleAcquireFree;
     private handleCategories;
+    private handleConfirmAgent;
     run(): Promise<void>;
 }
 //# sourceMappingURL=server.d.ts.map

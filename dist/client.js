@@ -101,6 +101,21 @@ class BringSkillsClient {
             return false;
         }
     }
+    /**
+     * Confirm agent type binding
+     */
+    async confirmAgentType(agentType) {
+        return this.request('/api/v1/api-keys/confirm-agent', {
+            method: 'POST',
+            body: JSON.stringify({ agent_type: agentType }),
+        });
+    }
+    /**
+     * Get list of supported agents
+     */
+    async getSupportedAgents() {
+        return this.request('/api/v1/api-keys/supported-agents');
+    }
 }
 exports.BringSkillsClient = BringSkillsClient;
 //# sourceMappingURL=client.js.map

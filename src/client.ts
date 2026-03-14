@@ -28,6 +28,20 @@ export interface SkillExecuteResult {
     tokens_used: number;
     execution_time_ms: number;
   };
+  agent_confirmation_required?: AgentConfirmationInfo;
+}
+
+export interface AgentConfirmationInfo {
+  detected: string | null;
+  confidence: number | null;
+  message: string;
+  confirm_url: string;
+  options: AgentOption[];
+}
+
+export interface AgentOption {
+  value: string;
+  label: string;
 }
 
 export interface UserSkill {
@@ -151,5 +165,22 @@ export class BringSkillsClient {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Confirm agent type binding
+   */
+  async confirmAgentType(agentType: string): Promise<{ success: boolean; message: string }> {
+    return this.request('/api/v1/api-keys/confirm-agent', {
+      method: 'POST',
+      body: JSON.stringify({ agent_type: agentType }),
+    });
+  }
+
+  /**
+   * Get list of supported agents
+   */
+  async getSupportedAgents(): Promise<{ agents: AgentOption[] }> {
+    return this.request('/api/v1/api-keys/supported-agents');
   }
 }

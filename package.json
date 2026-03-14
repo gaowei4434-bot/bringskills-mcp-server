@@ -1,6 +1,6 @@
 {
   "name": "bringskills-mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP Server for BringSkills - AI Skills Marketplace. Use skills across Claude Code, Cursor, Codex, and 10+ AI agents.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
