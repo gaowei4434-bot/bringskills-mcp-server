@@ -19,7 +19,7 @@ interface AgentConfig {
   value: string;
   supportsMcp: boolean;
   configPath: string | ((home: string) => string);
-  configFormat: 'json' | 'toml';
+  configFormat: 'json' | 'toml' | 'skill';
   configTemplate: (apiKey: string) => string;
   instructions?: string;
   shellEnvVar?: boolean;  // 是否需要写入 shell 环境变量
@@ -136,42 +136,90 @@ BRINGSKILLS_API_KEY = "${apiKey}"
   'openclaw': {
     name: 'OpenClaw',
     value: 'openclaw',
-    supportsMcp: false,  // OpenClaw 有自己的 skill 系统，不用 MCP
-    configPath: (home) => path.join(home, '.bringskills', 'openclaw-guide.md'),
-    configFormat: 'json',
-    configTemplate: (apiKey) => `# BringSkills for OpenClaw
+    supportsMcp: false,
+    configPath: (home) => path.join(home, '.agents', 'skills', 'bringskills', 'SKILL.md'),
+    configFormat: 'skill',
+    configTemplate: (apiKey) => `# BringSkills - AI 技能市场
 
-OpenClaw 有自己的 skill 系统，不需要通过 MCP Server 加载 BringSkills。
+搜索、浏览和执行 BringSkills 市场上的 AI 技能。一��购买，所有 Agent 通用。
 
-## 使用方式
+## 使用场景
 
-### 方式 1: 直接让 OpenClaw 调用 API
-在 OpenClaw 对话中说：
-\`\`\`
-搜索 BringSkills 技能 "text analysis"
-\`\`\`
+- 搜索 BringSkills 技能
+- 执行已购买的技能
+- 查看技能详情和使用方法
 
-OpenClaw 会自动调用 BringSkills HTTP API。
+## 环境变量
 
-### 方式 2: 使用环境变量 (已自动配置)
+需要设置 \`BRINGSKILLS_API_KEY\` 环境变量（setup 命令已自动配置）。
+
+## API 端点
+
+- Base URL: \`https://bringskills-production.up.railway.app/api/v1\`
+- 认证: \`X-API-Key: $BRINGSKILLS_API_KEY\`
+
+## 可用操作
+
+### 1. 搜索技能
+
 \`\`\`bash
-export BRINGSKILLS_API_KEY="${apiKey}"
+curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills?q=text&limit=10" \\
+  -H "X-API-Key: $BRINGSKILLS_API_KEY"
 \`\`\`
 
-### API 端点
-- 搜索技能: GET https://bringskills-production.up.railway.app/api/v1/skills?q=xxx
-- 执行技能: POST https://bringskills-production.up.railway.app/api/v1/skills/{slug}/execute
-- 认证头: X-API-Key: ${apiKey}
+返回匹配的技能列表，包含 name, slug, description, price, rating 等字段。
 
-## 示例
+### 2. 获取技能详情
+
 \`\`\`bash
-curl -X POST "https://bringskills-production.up.railway.app/api/v1/skills/text-statistics/execute" \\
-  -H "X-API-Key: ${apiKey}" \\
+curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills/{slug}" \\
+  -H "X-API-Key: $BRINGSKILLS_API_KEY"
+\`\`\`
+
+### 3. 执行技能
+
+\`\`\`bash
+curl -X POST "https://bringskills-production.up.railway.app/api/v1/skills/{slug}/execute" \\
+  -H "X-API-Key: $BRINGSKILLS_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"input": {"text": "Hello world"}}'
+  -d '{"input": {"text": "要处理的内容"}}'
 \`\`\`
+
+### 4. 查看我的技能
+
+\`\`\`bash
+curl -X GET "https://bringskills-production.up.railway.app/api/v1/orders" \\
+  -H "X-API-Key: $BRINGSKILLS_API_KEY"
+\`\`\`
+
+### 5. 获取免费技能
+
+\`\`\`bash
+curl -X POST "https://bringskills-production.up.railway.app/api/v1/orders/free" \\
+  -H "X-API-Key: $BRINGSKILLS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"skill_slug": "技能slug"}'
+\`\`\`
+
+## 示例对话
+
+用户: "搜索文本分析相关的技能"
+→ 调用搜索 API，返回技能列表
+
+用户: "执行 text-statistics 技能，分析这段文字：Hello world"
+→ 调用执行 API，返回分析结果
+
+用户: "把 code-reviewer 技能添加到我的库"
+→ 调用免费获取 API（如果是免费技能）
+
+## 错误处理
+
+- 401: API Key 无效或过期
+- 403: 没有该技能的使用权限（需要先购买）
+- 404: 技能不存在
+- 429: 请求过于频繁，稍后重试
 `,
-    instructions: 'OpenClaw 不需要 MCP 配置，直接在对话中让 OpenClaw 调用 BringSkills API 即可',
+    instructions: '已创建 OpenClaw skill 到 ~/.agents/skills/bringskills/，重启 OpenClaw 后生效',
     shellEnvVar: true
   },
   // 不支持 MCP 的 Agent - 但仍可自动配置
@@ -503,13 +551,19 @@ async function confirmAgentBinding(apiKey: string, agentType: string): Promise<{
 }
 
 // 写入配置文件
-function writeConfig(configPath: string, content: string, format: 'json' | 'toml'): { success: boolean; message: string } {
+function writeConfig(configPath: string, content: string, format: 'json' | 'toml' | 'skill'): { success: boolean; message: string } {
   try {
     const dir = path.dirname(configPath);
     
     // 创建目录
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    // skill 格式直接写入（OpenClaw skill）
+    if (format === 'skill') {
+      fs.writeFileSync(configPath, content, 'utf-8');
+      return { success: true, message: `Skill 已创建: ${configPath}` };
     }
     
     // 如果是 JSON 格式且文件已存在，尝试合并
