@@ -540,14 +540,7 @@ function writeConfig(configPath: string, content: string, format: 'json' | 'toml
 
 // 主函数
 async function main() {
-  const args = process.argv.slice(2);
-  
-  // 检查是否是 setup 命令
-  if (args[0] !== 'setup') {
-    // 如果不是 setup，启动 MCP server
-    require('./cli');
-    return;
-  }
+  // 直接运行 setup（cli.ts 已经处理了命令分发）
   
   console.log('\n🔧 BringSkills Setup\n');
   console.log('=' .repeat(50));
