@@ -2,102 +2,210 @@
 
 MCP (Model Context Protocol) Server for [BringSkills](https://www.bringskills.com) - the AI Skills Marketplace.
 
-**One purchase, use across all AI agents.** Buy skills once and use them with Claude Code, Cursor, Codex, and more AI agents.
+**One purchase, use across all AI agents.** Buy skills once and use them with Claude Code, Cursor, Codex, Windsurf, and 10+ AI agents.
 
-## Installation
+## 🚀 Quick Setup (Recommended)
 
-```bash
-npm install -g bringskills-mcp-server
-```
-
-## Quick Start
-
-### 1. Get your API Key
-
-Sign up at [BringSkills](https://www.bringskills.com) and get your API key from [Settings → API Keys](https://www.bringskills.com/settings/api-keys).
-
-### 2. Configure your AI Agent
-
-#### Claude Code / Claude Desktop
-
-Add to `~/.claude/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "bringskills": {
-      "command": "npx",
-      "args": ["-y", "bringskills-mcp-server"],
-      "env": {
-        "BRINGSKILLS_API_KEY": "sk-bring-xxx"
-      }
-    }
-  }
-}
-```
-
-#### Cursor
-
-Add to Cursor MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "bringskills": {
-      "command": "npx",
-      "args": ["-y", "bringskills-mcp-server"],
-      "env": {
-        "BRINGSKILLS_API_KEY": "sk-bring-xxx"
-      }
-    }
-  }
-}
-```
-
-#### Codex CLI (OpenAI)
-
-Add to `~/.codex/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "bringskills": {
-      "command": "npx",
-      "args": ["-y", "bringskills-mcp-server"],
-      "env": {
-        "BRINGSKILLS_API_KEY": "sk-bring-xxx"
-      }
-    }
-  }
-}
-```
-
-#### Windsurf (Codeium)
-
-Add to `~/.codeium/windsurf/mcp_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "bringskills": {
-      "command": "npx",
-      "args": ["-y", "bringskills-mcp-server"],
-      "env": {
-        "BRINGSKILLS_API_KEY": "sk-bring-xxx"
-      }
-    }
-  }
-}
-```
-
-#### OpenClaw
+**One command to configure everything:**
 
 ```bash
-openclaw skill install bringskills-mcp-server
-export BRINGSKILLS_API_KEY="sk-bring-xxx"
+npx bringskills-mcp-server setup
 ```
 
-## Available Tools
+This interactive setup will:
+1. ✅ Let you choose your AI Agent
+2. ✅ Validate your API Key
+3. ✅ Bind your API Key to the Agent type
+4. ✅ Write the correct configuration file
+
+---
+
+## 📋 Supported AI Agents
+
+### ✅ MCP-Compatible Agents (Full Support)
+
+| Agent | Config File | Status |
+|-------|-------------|--------|
+| Claude Code | `~/.claude/mcp.json` | ✅ Verified |
+| Cursor | `~/.cursor/mcp.json` | ✅ Verified |
+| Codex CLI (OpenAI) | `~/.codex/config.toml` | ✅ Verified |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | ✅ Verified |
+| GitHub Copilot | VS Code MCP settings | ✅ Verified |
+| Amazon Q | `~/.aws/amazonq/mcp.json` | ✅ Verified |
+| OpenClaw | `~/.openclaw/openclaw.json` | ✅ Verified |
+
+### ❌ Non-MCP Agents (HTTP API Only)
+
+| Agent | Integration Method |
+|-------|-------------------|
+| Aider | Environment variable + API calls |
+| Cody (Sourcegraph) | HTTP API |
+| Tabnine | Not supported (closed system) |
+| JetBrains AI | HTTP API |
+| Replit AI | Secrets + HTTP API |
+| Continue | Deprecated (product pivoted) |
+
+---
+
+## 📖 Manual Configuration
+
+If you prefer manual setup, here are the configurations for each agent:
+
+### Claude Code / Claude Desktop
+
+**Config file:** `~/.claude/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "bringskills": {
+      "command": "npx",
+      "args": ["-y", "bringskills-mcp-server"],
+      "env": {
+        "BRINGSKILLS_API_KEY": "sk-bring-xxx"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+**Config file:** `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project)
+
+```json
+{
+  "mcpServers": {
+    "bringskills": {
+      "command": "npx",
+      "args": ["-y", "bringskills-mcp-server"],
+      "env": {
+        "BRINGSKILLS_API_KEY": "sk-bring-xxx"
+      }
+    }
+  }
+}
+```
+
+**Config interpolation supported:**
+```json
+{
+  "env": {
+    "BRINGSKILLS_API_KEY": "${env:BRINGSKILLS_API_KEY}"
+  }
+}
+```
+
+### Codex CLI (OpenAI)
+
+**Config file:** `~/.codex/config.toml`
+
+```toml
+[mcp_servers.bringskills]
+command = "npx"
+args = ["-y", "bringskills-mcp-server"]
+
+[mcp_servers.bringskills.env]
+BRINGSKILLS_API_KEY = "sk-bring-xxx"
+```
+
+**Or use environment variable:**
+```toml
+[mcp_servers.bringskills]
+command = "npx"
+args = ["-y", "bringskills-mcp-server"]
+env_vars = ["BRINGSKILLS_API_KEY"]
+```
+
+### Windsurf
+
+**Config file:** `~/.codeium/windsurf/mcp_config.json`
+
+```json
+{
+  "mcpServers": {
+    "bringskills": {
+      "command": "npx",
+      "args": ["-y", "bringskills-mcp-server"],
+      "env": {
+        "BRINGSKILLS_API_KEY": "sk-bring-xxx"
+      }
+    }
+  }
+}
+```
+
+### GitHub Copilot
+
+**Config:** VS Code `settings.json`
+
+```json
+{
+  "github.copilot.chat.mcp.servers": {
+    "bringskills": {
+      "command": "npx",
+      "args": ["-y", "bringskills-mcp-server"],
+      "env": {
+        "BRINGSKILLS_API_KEY": "sk-bring-xxx"
+      }
+    }
+  }
+}
+```
+
+### Amazon Q
+
+**Config file:** `~/.aws/amazonq/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "bringskills": {
+      "command": "npx",
+      "args": ["-y", "bringskills-mcp-server"],
+      "env": {
+        "BRINGSKILLS_API_KEY": "sk-bring-xxx"
+      }
+    }
+  }
+}
+```
+
+### OpenClaw
+
+**Config file:** `~/.openclaw/openclaw.json` (merge into existing)
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "bringskills": {
+        "command": "npx",
+        "args": ["-y", "bringskills-mcp-server"],
+        "env": {
+          "BRINGSKILLS_API_KEY": "sk-bring-xxx"
+        }
+      }
+    }
+  }
+}
+```
+
+### Generic / Other MCP Agents
+
+```json
+{
+  "command": "npx",
+  "args": ["-y", "bringskills-mcp-server"],
+  "env": {
+    "BRINGSKILLS_API_KEY": "sk-bring-xxx"
+  }
+}
+```
+
+---
+
+## 🔧 Available Tools
 
 The MCP server provides these tools to your AI agent:
 
@@ -109,173 +217,122 @@ The MCP server provides these tools to your AI agent:
 | `bringskills_my_skills` | List your purchased/acquired skills |
 | `bringskills_acquire_free` | Add a free skill to your library |
 | `bringskills_categories` | List all skill categories |
-| `bringskills_confirm_agent` | Confirm your AI agent type for optimized output |
+| `bringskills_confirm_agent` | Confirm your AI agent type |
 
-## Agent Confirmation Flow
+---
 
-When you first execute a skill, BringSkills will try to auto-detect your AI agent type. If detection fails or you want to specify a different agent, you'll be prompted to confirm:
+## 🔐 Agent Confirmation Flow
 
-1. **Auto-detected**: If your agent is detected, you'll see a prompt like:
-   ```
-   🔔 Agent 确认
-   检测到你正在使用 Claude Code (置信度: 85%)
-   请确认是否正确...
-   ```
-   - Confirm: `bringskills_confirm_agent(confirmed=true)`
-   - Choose different: `bringskills_confirm_agent(confirmed=false, agent_type="cursor")`
+When you first execute a skill, BringSkills will auto-detect your AI agent type. If detection fails, you'll be prompted to confirm:
 
-2. **Not detected**: If detection fails, manually specify your agent:
-   ```
-   bringskills_confirm_agent(confirmed=false, agent_type="claude-code")
-   ```
+```
+🔔 Agent 确认
+检测到你正在使用 Claude Code (置信度: 85%)
+请确认是否正确...
+```
+
+- Confirm: `bringskills_confirm_agent(confirmed=true)`
+- Choose different: `bringskills_confirm_agent(confirmed=false, agent_type="cursor")`
 
 **Supported agent types:**
-- `openclaw`, `claude-code`, `cursor`, `codex`, `windsurf`, `aider`
-- `continue`, `cody`, `github-copilot`, `tabnine`, `amazon-q`
-- `jetbrains-ai`, `replit-ai`, `generic`
+`openclaw`, `claude-code`, `cursor`, `codex`, `windsurf`, `aider`, `continue`, `cody`, `github-copilot`, `tabnine`, `amazon-q`, `jetbrains-ai`, `replit-ai`, `generic`
 
-Once confirmed, your API key is bound to that agent type, and all skill outputs will be optimized for it.
+---
 
-## Usage Examples
+## 💡 Usage Examples
 
 Once configured, your AI agent can use BringSkills naturally:
 
 ```
 "Search for code review skills"
-→ Uses bringskills_search to find relevant skills
+→ Uses bringskills_search
 
 "Execute the text-analyzer skill on this code"
-→ Uses bringskills_execute with your input
+→ Uses bringskills_execute
 
 "Show me my skills"
-→ Uses bringskills_my_skills to list your library
+→ Uses bringskills_my_skills
 
 "Get the free weather skill"
-→ Uses bringskills_acquire_free to add it
+→ Uses bringskills_acquire_free
 ```
 
-## Environment Variables
+---
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `BRINGSKILLS_API_KEY` | Your BringSkills API key | Yes |
-| `BRINGSKILLS_API_URL` | Custom API URL (default: production) | No |
+## 🌐 HTTP API (For Non-MCP Agents)
 
-## Programmatic Usage
+For agents that don't support MCP, use the HTTP API directly:
 
-You can also use the client directly in your code:
+**Base URL:** `https://bringskills-production.up.railway.app/api/v1/`
 
-```typescript
-import { BringSkillsClient } from 'bringskills-mcp-server';
+**Authentication:** `X-API-Key: sk-bring-xxx`
 
-const client = new BringSkillsClient('sk-bring-xxx');
-
-// Search skills
-const skills = await client.searchSkills('code review');
-
-// Execute a skill
-const result = await client.executeSkill('text-analyzer', {
-  text: 'Hello world'
-});
-
-// Get your skills
-const mySkills = await client.getMySkills();
-```
-
-## Supported AI Agents
-
-### MCP-Compatible Agents (Native Support)
-
-| Agent | Configuration |
-|-------|---------------|
-| Claude Code | MCP via `~/.claude/mcp.json` |
-| Cursor | MCP via settings |
-| Windsurf | MCP via `~/.codeium/windsurf/mcp_config.json` |
-| Codex CLI | MCP via `~/.codex/mcp.json` |
-| OpenClaw | Native skill install |
-
-### Other Agents (HTTP API)
-
-For agents that don't support MCP, use the BringSkills HTTP API directly via `bringskills-api` package:
-
+**Example:**
 ```bash
-npm install bringskills-api
+curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills?q=code+review" \
+  -H "X-API-Key: sk-bring-xxx"
 ```
 
-```typescript
-import { BringSkillsAPI } from 'bringskills-api';
+**API Documentation:** [bringskills.com/docs/api](https://www.bringskills.com/docs/api)
 
-const api = new BringSkillsAPI('sk-bring-xxx');
-const result = await api.execute('text-statistics', { text: 'Hello' });
-```
+---
 
-| Agent | Integration Method |
-|-------|-------------------|
-| Aider | Use `bringskills-api` + context file |
-| Cody | Use `bringskills-api` in custom commands |
-| GitHub Copilot | Generate API call code |
-| Tabnine | Generate API call code |
-| Amazon Q | Use `bringskills-api` |
-| JetBrains AI | Generate API call code |
-| Replit AI | Use Secrets + API calls |
+## 🔧 Environment Variables
 
-## Troubleshooting
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `BRINGSKILLS_API_KEY` | Yes | Your BringSkills API key |
+| `BRINGSKILLS_API_URL` | No | Custom API URL (default: production) |
 
-### "Invalid authentication credentials" Error
+---
 
-This error occurs when the API key is not properly configured:
+## ❓ Troubleshooting
 
-1. **Check your API key format** - Must start with `sk-bring-`
-2. **Verify environment variable** - Ensure `BRINGSKILLS_API_KEY` is set correctly
-3. **Restart your AI agent** - After changing config, restart Claude Code/Cursor
-4. **Clear npx cache** (if using npx):
-   ```bash
-   npx clear-npx-cache
-   # or
-   rm -rf ~/.npm/_npx
-   ```
+### "API key not found"
+- Ensure `BRINGSKILLS_API_KEY` is set in your config
+- Run `npx bringskills-mcp-server setup` to reconfigure
 
-### Skill execution returns empty result
-
-1. **Check if skill has code** - Some skills may not have executable code yet
-2. **Verify input format** - Ensure input matches the skill's expected parameters
-3. **Try a different skill** - Test with `text-statistics` to verify setup
+### "Agent not confirmed"
+- Run `bringskills_confirm_agent` to bind your API key
 
 ### MCP server not loading
+1. Check config file location for your agent
+2. Validate JSON/TOML syntax
+3. Test manually: `BRINGSKILLS_API_KEY="sk-bring-xxx" npx bringskills-mcp-server`
 
-1. **Check config file location**:
-   - Claude Code: `~/.claude/mcp.json`
-   - Cursor: Settings → MCP
-   - Codex: `~/.codex/mcp.json`
+### Clear npx cache
+```bash
+rm -rf ~/.npm/_npx
+```
 
-2. **Validate JSON syntax** - Use a JSON validator
+---
 
-3. **Check logs**:
-   ```bash
-   # Test MCP server directly
-   BRINGSKILLS_API_KEY="sk-bring-xxx" npx bringskills-mcp-server
-   ```
+## 📚 Links
 
-## Changelog
+- **Website:** [bringskills.com](https://www.bringskills.com)
+- **Get API Key:** [bringskills.com/settings/api-keys](https://www.bringskills.com/settings/api-keys)
+- **API Docs:** [bringskills.com/docs/api](https://www.bringskills.com/docs/api)
+- **Support:** support@bringskills.com
 
-### v1.1.3 (Latest)
-- Fixed: Executor now correctly calls `main(input)` function
+---
+
+## 📝 Changelog
+
+### v1.2.0
+- Added: Interactive setup command (`npx bringskills-mcp-server setup`)
+- Added: Support for 7 MCP-compatible agents
+- Fixed: Codex CLI config format (TOML, not JSON)
+- Updated: Complete documentation for all 13 agents
+
+### v1.1.4
+- Fixed: Executor correctly calls `main(input)` function
 - Fixed: Categories API response format
-- Added: Agent confirmation flow documentation
 
 ### v1.1.2
 - Added: Agent type auto-detection
 - Added: `bringskills_confirm_agent` tool
 
-### v1.1.0
-- Initial MCP server release
-
-## Links
-
-- [BringSkills Marketplace](https://www.bringskills.com)
-- [Documentation](https://www.bringskills.com/docs)
-- [API Reference](https://www.bringskills.com/docs/api)
-- [Get API Key](https://www.bringskills.com/settings/api-keys)
+---
 
 ## License
 
