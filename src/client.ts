@@ -107,7 +107,13 @@ export class BringSkillsClient {
    * Get details of a specific skill
    */
   async getSkill(slugOrId: string): Promise<Skill> {
-    return this.request(`/api/v1/skills/${slugOrId}`);
+    // 判断是 UUID 还是 slug
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
+    const endpoint = isUUID 
+      ? `/api/v1/skills/${slugOrId}`
+      : `/api/v1/skills/slug/${slugOrId}`;
+    
+    return this.request(endpoint);
   }
 
   /**
@@ -117,7 +123,13 @@ export class BringSkillsClient {
     slugOrId: string,
     input: Record<string, unknown>
   ): Promise<SkillExecuteResult> {
-    return this.request(`/api/v1/skills/${slugOrId}/execute`, {
+    // 判断是 UUID 还是 slug
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
+    const endpoint = isUUID 
+      ? `/api/v1/skills/${slugOrId}/execute`
+      : `/api/v1/skills/slug/${slugOrId}/execute`;
+    
+    return this.request(endpoint, {
       method: 'POST',
       body: JSON.stringify({ input }),
     });
