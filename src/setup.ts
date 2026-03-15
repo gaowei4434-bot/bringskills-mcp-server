@@ -22,6 +22,7 @@ interface AgentConfig {
   configFormat: 'json' | 'toml';
   configTemplate: (apiKey: string) => string;
   instructions?: string;
+  shellEnvVar?: boolean;  // 是否需要写入 shell 环境变量
 }
 
 const AGENT_CONFIGS: Record<string, AgentConfig> = {
@@ -153,81 +154,241 @@ BRINGSKILLS_API_KEY = "${apiKey}"
     }, null, 2),
     instructions: '注意: 需要合并到现有的 openclaw.json 中'
   },
-  // 不支持 MCP 的 Agent
+  // 不支持 MCP 的 Agent - 但仍可自动配置
   'aider': {
     name: 'Aider',
     value: 'aider',
     supportsMcp: false,
-    configPath: (home) => path.join(home, '.aider.conf.yml'),
-    configFormat: 'json', // 实际是 YAML，但我们用特殊处理
-    configTemplate: (apiKey) => `# BringSkills API Configuration
-# 在 Aider 中使用: /add .bringskills-context.md
-# 然后让 Aider 生成 API 调用代码
+    configPath: (home) => path.join(home, '.bringskills', 'aider-context.md'),
+    configFormat: 'json',
+    configTemplate: (apiKey) => `# BringSkills API Context for Aider
 
-# 环境变量设置 (添加到 ~/.zshrc 或 ~/.bashrc):
-# export BRINGSKILLS_API_KEY="${apiKey}"
+## 环境变量 (已自动添加到 shell 配置)
+\`\`\`bash
+export BRINGSKILLS_API_KEY="${apiKey}"
+\`\`\`
+
+## API 使用方法
+
+### 搜索技能
+\`\`\`bash
+curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills?q=YOUR_QUERY" \\
+  -H "X-API-Key: $BRINGSKILLS_API_KEY"
+\`\`\`
+
+### 执行技能
+\`\`\`bash
+curl -X POST "https://bringskills-production.up.railway.app/api/v1/skills/SKILL_ID/execute" \\
+  -H "X-API-Key: $BRINGSKILLS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"input": {"text": "your input"}}'
+\`\`\`
+
+### 获取我的技能
+\`\`\`bash
+curl -X GET "https://bringskills-production.up.railway.app/api/v1/users/me/skills" \\
+  -H "X-API-Key: $BRINGSKILLS_API_KEY"
+\`\`\`
+
+## Python 代码示例
+\`\`\`python
+import os
+import requests
+
+API_KEY = os.environ.get("BRINGSKILLS_API_KEY")
+BASE_URL = "https://bringskills-production.up.railway.app/api/v1"
+
+def search_skills(query):
+    resp = requests.get(f"{BASE_URL}/skills", 
+                       params={"q": query},
+                       headers={"X-API-Key": API_KEY})
+    return resp.json()
+
+def execute_skill(skill_id, input_data):
+    resp = requests.post(f"{BASE_URL}/skills/{skill_id}/execute",
+                        json={"input": input_data},
+                        headers={"X-API-Key": API_KEY})
+    return resp.json()
+\`\`\`
+
+## 使用说明
+在 Aider 中运行: \`/add ~/.bringskills/aider-context.md\`
+然后让 Aider 帮你调用 BringSkills API。
 `,
-    instructions: `
-Aider 不支持 MCP，但你可以：
-1. 设置环境变量: export BRINGSKILLS_API_KEY=<your-api-key>
-2. 让 Aider 生成 BringSkills API 调用代码
-3. API 文档: https://www.bringskills.com/docs/api
-`
+    instructions: '已创建 context file，在 Aider 中运行: /add ~/.bringskills/aider-context.md',
+    shellEnvVar: true  // 标记需要写入 shell 环境变量
   },
   'cody': {
     name: 'Cody (Sourcegraph)',
     value: 'cody',
     supportsMcp: false,
-    configPath: '',
+    configPath: (home) => path.join(home, '.bringskills', 'cody-commands.json'),
     configFormat: 'json',
-    configTemplate: () => '',
-    instructions: `
-Cody 不支持外部 MCP Server。
-请使用 BringSkills HTTP API:
-- Base URL: https://bringskills-production.up.railway.app/api/v1/
-- Header: X-API-Key: <your-api-key>
-- 文档: https://www.bringskills.com/docs/api
-`
+    configTemplate: (apiKey) => JSON.stringify({
+      "bringskills.apiKey": apiKey,
+      "commands": {
+        "bringskills-search": {
+          "description": "Search BringSkills marketplace",
+          "prompt": "Use the BringSkills API to search for skills. API Key is in environment variable BRINGSKILLS_API_KEY. Base URL: https://bringskills-production.up.railway.app/api/v1/skills?q={query}"
+        },
+        "bringskills-execute": {
+          "description": "Execute a BringSkills skill",
+          "prompt": "Use the BringSkills API to execute a skill. POST to https://bringskills-production.up.railway.app/api/v1/skills/{skill_id}/execute with X-API-Key header."
+        }
+      },
+      "usage": "Copy these commands to your Cody custom commands configuration"
+    }, null, 2),
+    instructions: '已创建命令模板，请将 ~/.bringskills/cody-commands.json 中的命令添加到 Cody 自定义命令',
+    shellEnvVar: true
   },
   'tabnine': {
     name: 'Tabnine',
     value: 'tabnine',
     supportsMcp: false,
-    configPath: '',
+    configPath: (home) => path.join(home, '.bringskills', 'tabnine-guide.md'),
     configFormat: 'json',
-    configTemplate: () => '',
-    instructions: `
-Tabnine 是封闭系统，不支持外部集成。
-请使用 BringSkills HTTP API 或切换到支持 MCP 的 Agent。
-`
+    configTemplate: (apiKey) => `# BringSkills for Tabnine
+
+Tabnine 是封闭系统，无法直接集成。但你可以让 Tabnine 帮你生成 API 调用代码。
+
+## 环境变量 (已自动添加)
+\`\`\`bash
+export BRINGSKILLS_API_KEY="${apiKey}"
+\`\`\`
+
+## 让 Tabnine 生成的代码模板
+
+在编辑器中输入注释，让 Tabnine 补全：
+
+\`\`\`python
+# Call BringSkills API to search for skills about "code review"
+# Use requests library, API key from environment variable BRINGSKILLS_API_KEY
+# Base URL: https://bringskills-production.up.railway.app/api/v1
+\`\`\`
+
+## API 文档
+https://www.bringskills.com/docs/api
+`,
+    instructions: '已创建使用指南: ~/.bringskills/tabnine-guide.md',
+    shellEnvVar: true
   },
   'jetbrains-ai': {
     name: 'JetBrains AI',
     value: 'jetbrains-ai',
     supportsMcp: false,
-    configPath: '',
+    configPath: (home) => path.join(home, '.bringskills', 'jetbrains-template.kt'),
     configFormat: 'json',
-    configTemplate: () => '',
-    instructions: `
-JetBrains AI 不支持 MCP。
-请使用 BringSkills HTTP API:
-- Base URL: https://bringskills-production.up.railway.app/api/v1/
-- Header: X-API-Key: <your-api-key>
-`
+    configTemplate: (apiKey) => `// BringSkills API Template for JetBrains AI
+// 环境变量已自动配置: BRINGSKILLS_API_KEY
+
+package com.example.bringskills
+
+import java.net.HttpURLConnection
+import java.net.URL
+
+object BringSkillsClient {
+    private val apiKey = System.getenv("BRINGSKILLS_API_KEY") ?: "${apiKey}"
+    private const val baseUrl = "https://bringskills-production.up.railway.app/api/v1"
+
+    fun searchSkills(query: String): String {
+        val url = URL("\$baseUrl/skills?q=\$query")
+        val conn = url.openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        conn.setRequestProperty("X-API-Key", apiKey)
+        return conn.inputStream.bufferedReader().readText()
+    }
+
+    fun executeSkill(skillId: String, input: Map<String, Any>): String {
+        val url = URL("\$baseUrl/skills/\$skillId/execute")
+        val conn = url.openConnection() as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.setRequestProperty("X-API-Key", apiKey)
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.doOutput = true
+        // Add JSON body serialization here
+        return conn.inputStream.bufferedReader().readText()
+    }
+}
+
+// 使用方法: 让 JetBrains AI 基于此模板生成代码
+`,
+    instructions: '已创建 Kotlin 模板: ~/.bringskills/jetbrains-template.kt',
+    shellEnvVar: true
   },
   'replit-ai': {
     name: 'Replit AI',
     value: 'replit-ai',
     supportsMcp: false,
-    configPath: '',
+    configPath: (home) => path.join(home, '.bringskills', 'replit-setup.md'),
     configFormat: 'json',
-    configTemplate: () => '',
-    instructions: `
-Replit AI 不支持 MCP。
-在 Replit 中使用:
-1. 添加 Secret: BRINGSKILLS_API_KEY = <your-api-key>
-2. 使用 HTTP API 调用 BringSkills
-`
+    configTemplate: (apiKey) => `# BringSkills for Replit AI
+
+## 步骤 1: 添加 Secret
+在 Replit 项目中:
+1. 点击左侧 "Secrets" (🔒)
+2. 添加新 Secret:
+   - Key: \`BRINGSKILLS_API_KEY\`
+   - Value: \`${apiKey}\`
+
+## 步骤 2: 使用代码
+
+### Python
+\`\`\`python
+import os
+import requests
+
+API_KEY = os.environ["BRINGSKILLS_API_KEY"]
+BASE_URL = "https://bringskills-production.up.railway.app/api/v1"
+
+# 搜索技能
+def search_skills(query):
+    resp = requests.get(f"{BASE_URL}/skills", 
+                       params={"q": query},
+                       headers={"X-API-Key": API_KEY})
+    return resp.json()
+
+# 执行技能
+def execute_skill(skill_id, input_data):
+    resp = requests.post(f"{BASE_URL}/skills/{skill_id}/execute",
+                        json={"input": input_data},
+                        headers={"X-API-Key": API_KEY})
+    return resp.json()
+
+# 示例
+skills = search_skills("text analysis")
+print(skills)
+\`\`\`
+
+### JavaScript/Node.js
+\`\`\`javascript
+const API_KEY = process.env.BRINGSKILLS_API_KEY;
+const BASE_URL = "https://bringskills-production.up.railway.app/api/v1";
+
+async function searchSkills(query) {
+  const resp = await fetch(\`\${BASE_URL}/skills?q=\${query}\`, {
+    headers: { "X-API-Key": API_KEY }
+  });
+  return resp.json();
+}
+
+async function executeSkill(skillId, input) {
+  const resp = await fetch(\`\${BASE_URL}/skills/\${skillId}/execute\`, {
+    method: "POST",
+    headers: { 
+      "X-API-Key": API_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ input })
+  });
+  return resp.json();
+}
+\`\`\`
+
+## 让 Replit AI 帮你
+告诉 Replit AI: "使用 BRINGSKILLS_API_KEY 环境变量调用 BringSkills API"
+`,
+    instructions: '已创建 Replit 配置指南: ~/.bringskills/replit-setup.md\n请在 Replit 中添加 Secret: BRINGSKILLS_API_KEY',
+    shellEnvVar: false  // Replit 用 Secrets，不用 shell 环境变量
   },
   'continue': {
     name: 'Continue',
@@ -237,8 +398,12 @@ Replit AI 不支持 MCP。
     configFormat: 'json',
     configTemplate: () => '',
     instructions: `
-Continue 已转型为 PR 检查工具，不再支持 MCP。
-请使用其他支持 MCP 的 Agent。
+⚠️ Continue 已转型为 PR 检查工具，不再是 IDE 插件。
+建议切换到以下支持 MCP 的 Agent:
+- Claude Code
+- Cursor  
+- Codex CLI
+- Windsurf
 `
   },
   'generic': {
@@ -412,17 +577,7 @@ async function main() {
     
     // 2. 检查是否支持 MCP
     if (!selectedAgent.supportsMcp) {
-      console.log('\n⚠️  此 Agent 不支持 MCP');
-      if (selectedAgent.instructions) {
-        console.log(selectedAgent.instructions);
-      }
-      
-      // 仍然可以绑定 Agent 类型
-      const continueSetup = await question(rl, '\n是否仍要绑定 API Key 到此 Agent 类型? (y/n): ');
-      if (continueSetup.toLowerCase() !== 'y') {
-        rl.close();
-        return;
-      }
+      console.log('\n⚠️  此 Agent 不支持 MCP，将配置 HTTP API 集成方式');
     }
     
     // 3. 输入 API Key
@@ -455,38 +610,94 @@ async function main() {
       console.log(`⚠️  绑定警告: ${bindResult.message}`);
     }
     
-    // 6. 写入配置文件 (仅支持 MCP 的 Agent)
-    if (selectedAgent.supportsMcp && selectedAgent.configPath) {
-      const configPath = typeof selectedAgent.configPath === 'function' 
-        ? selectedAgent.configPath(home) 
-        : selectedAgent.configPath;
+    // 6. 写入配置文件 (所有有 configPath 的 Agent)
+    const configPath = typeof selectedAgent.configPath === 'function' 
+      ? selectedAgent.configPath(home) 
+      : selectedAgent.configPath;
+    
+    if (configPath) {
+      console.log(`\n⏳ 正在写入配置到 ${configPath}...`);
+      const configContent = selectedAgent.configTemplate(apiKey);
+      const writeResult = writeConfig(configPath, configContent, selectedAgent.configFormat);
       
-      if (configPath) {
-        console.log(`\n⏳ 正在写入配置到 ${configPath}...`);
-        const configContent = selectedAgent.configTemplate(apiKey);
-        const writeResult = writeConfig(configPath, configContent, selectedAgent.configFormat);
-        
-        if (writeResult.success) {
-          console.log(`✅ ${writeResult.message}`);
-        } else {
-          console.log(`❌ ${writeResult.message}`);
-        }
-        
-        if (selectedAgent.instructions) {
-          console.log(`\n📝 ${selectedAgent.instructions}`);
-        }
+      if (writeResult.success) {
+        console.log(`✅ ${writeResult.message}`);
+      } else {
+        console.log(`��� ${writeResult.message}`);
       }
     }
     
-    // 7. 完成
+    // 7. 写入 shell 环境变量 (对于需要的 Agent)
+    const agentConfig = selectedAgent as AgentConfig & { shellEnvVar?: boolean };
+    if (agentConfig.shellEnvVar) {
+      console.log('\n⏳ 正在配置环境变量...');
+      const shellEnvResult = writeShellEnvVar(apiKey, home);
+      if (shellEnvResult.success) {
+        console.log(`✅ ${shellEnvResult.message}`);
+      } else {
+        console.log(`⚠️  ${shellEnvResult.message}`);
+      }
+    }
+    
+    // 8. 显示说明
+    if (selectedAgent.instructions) {
+      console.log(`\n📝 ${selectedAgent.instructions}`);
+    }
+    
+    // 9. 完成
     console.log('\n' + '=' .repeat(50));
     console.log('🎉 配置完成！');
-    console.log(`\n请重启 ${selectedAgent.name} 开始使用 BringSkills。`);
-    console.log('\n测试: 在 Agent 中输入 "搜索 BringSkills 技能"');
+    
+    if (selectedAgent.supportsMcp) {
+      console.log(`\n请重启 ${selectedAgent.name} 开始使用 BringSkills。`);
+      console.log('\n测试: 在 Agent 中输入 "搜索 BringSkills 技能"');
+    } else {
+      console.log(`\n${selectedAgent.name} 已配置完成。`);
+      console.log('请查看上方说明了解如何使用 BringSkills API。');
+    }
     console.log('\n文档: https://www.bringskills.com/docs');
     
   } finally {
     rl.close();
+  }
+}
+
+// 写入 shell 环境变量
+function writeShellEnvVar(apiKey: string, home: string): { success: boolean; message: string } {
+  try {
+    // 检测 shell 类型
+    const shell = process.env.SHELL || '/bin/bash';
+    let rcFile: string;
+    
+    if (shell.includes('zsh')) {
+      rcFile = path.join(home, '.zshrc');
+    } else if (shell.includes('bash')) {
+      rcFile = path.join(home, '.bashrc');
+    } else {
+      rcFile = path.join(home, '.profile');
+    }
+    
+    const envLine = `\n# BringSkills API Key\nexport BRINGSKILLS_API_KEY="${apiKey}"\n`;
+    
+    // 检查是否已存在
+    if (fs.existsSync(rcFile)) {
+      const content = fs.readFileSync(rcFile, 'utf-8');
+      if (content.includes('BRINGSKILLS_API_KEY')) {
+        // 更新现有的
+        const updated = content.replace(
+          /export BRINGSKILLS_API_KEY="[^"]*"/,
+          `export BRINGSKILLS_API_KEY="${apiKey}"`
+        );
+        fs.writeFileSync(rcFile, updated, 'utf-8');
+        return { success: true, message: `已更新 ${rcFile} 中的环境变量` };
+      }
+    }
+    
+    // 追加新的
+    fs.appendFileSync(rcFile, envLine, 'utf-8');
+    return { success: true, message: `已添加环境变量到 ${rcFile}\n   请运行: source ${rcFile}` };
+  } catch (error) {
+    return { success: false, message: `无法写入环境变量: ${error}` };
   }
 }
 

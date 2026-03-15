@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "bringskills-mcp": "./dist/cli.js",
-    "bringskills-setup": "./dist/setup.js"
+    "bringskills-mcp": "dist/cli.js",
+    "bringskills-setup": "dist/setup.js"
   },
   "scripts": {
     "build": "tsc",
@@ -30,7 +30,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bringskills/mcp-server.git"
+    "url": "git+https://github.com/bringskills/mcp-server.git"
   },
   "homepage": "https://www.bringskills.com",
   "engines": {
