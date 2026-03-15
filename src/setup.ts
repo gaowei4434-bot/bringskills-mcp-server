@@ -136,23 +136,43 @@ BRINGSKILLS_API_KEY = "${apiKey}"
   'openclaw': {
     name: 'OpenClaw',
     value: 'openclaw',
-    supportsMcp: true,
-    configPath: (home) => path.join(home, '.openclaw', 'openclaw.json'),
+    supportsMcp: false,  // OpenClaw 有自己的 skill 系统，不用 MCP
+    configPath: (home) => path.join(home, '.bringskills', 'openclaw-guide.md'),
     configFormat: 'json',
-    configTemplate: (apiKey) => JSON.stringify({
-      mcp: {
-        servers: {
-          bringskills: {
-            command: 'npx',
-            args: ['-y', 'bringskills-mcp-server'],
-            env: {
-              BRINGSKILLS_API_KEY: apiKey
-            }
-          }
-        }
-      }
-    }, null, 2),
-    instructions: '注意: 需要合并到现有的 openclaw.json 中'
+    configTemplate: (apiKey) => `# BringSkills for OpenClaw
+
+OpenClaw 有自己的 skill 系统，不需要通过 MCP Server 加载 BringSkills。
+
+## 使用方式
+
+### 方式 1: 直接让 OpenClaw 调用 API
+在 OpenClaw 对话中说：
+\`\`\`
+搜索 BringSkills 技能 "text analysis"
+\`\`\`
+
+OpenClaw 会自动调用 BringSkills HTTP API。
+
+### 方式 2: 使用环境变量 (已自动配置)
+\`\`\`bash
+export BRINGSKILLS_API_KEY="${apiKey}"
+\`\`\`
+
+### API 端点
+- 搜索技能: GET https://bringskills-production.up.railway.app/api/v1/skills?q=xxx
+- 执行技能: POST https://bringskills-production.up.railway.app/api/v1/skills/{slug}/execute
+- 认证头: X-API-Key: ${apiKey}
+
+## 示例
+\`\`\`bash
+curl -X POST "https://bringskills-production.up.railway.app/api/v1/skills/text-statistics/execute" \\
+  -H "X-API-Key: ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"input": {"text": "Hello world"}}'
+\`\`\`
+`,
+    instructions: 'OpenClaw 不需要 MCP 配置，直接在对话中让 OpenClaw 调用 BringSkills API 即可',
+    shellEnvVar: true
   },
   // 不支持 MCP 的 Agent - 但仍可自动配置
   'aider': {
