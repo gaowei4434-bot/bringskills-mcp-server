@@ -37,6 +37,8 @@ function getApiKey(): string {
 
 async function main(): Promise<void> {
   const apiKey = getApiKey();
+  // Debug: log API key prefix to stderr (MCP uses stdout for protocol)
+  console.error(`[DEBUG] API Key loaded: ${apiKey.substring(0, 15)}...`);
   const server = new BringSkillsMCPServer(apiKey);
   await server.run();
 }

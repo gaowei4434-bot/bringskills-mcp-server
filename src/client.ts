@@ -70,6 +70,10 @@ export class BringSkillsClient {
       ...((options.headers as Record<string, string>) || {}),
     };
 
+    // Debug: log request details to stderr
+    console.error(`[DEBUG] Request: ${options.method || 'GET'} ${url}`);
+    console.error(`[DEBUG] Auth header: Bearer ${this.apiKey.substring(0, 15)}...`);
+
     const response = await fetch(url, {
       ...options,
       headers,
@@ -77,6 +81,7 @@ export class BringSkillsClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: response.statusText })) as { detail?: string };
+      console.error(`[DEBUG] Error response: ${JSON.stringify(error)}`);
       throw new Error(error.detail || `API Error: ${response.status}`);
     }
 
@@ -157,7 +162,11 @@ export class BringSkillsClient {
    * List skill categories
    */
   async getCategories(): Promise<{ categories: { slug: string; name: string; count: number }[] }> {
-    return this.request('/api/v1/skills/categories');
+    // API returns array directly, wrap it
+    const result = await this.request<{ name: string; count: number }[]>('/api/v1/skills/categories');
+    return { 
+      categories: result.map(c => ({ slug: c.name, name: c.name, count: c.count }))
+    };
   }
 
   /**
