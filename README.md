@@ -9,14 +9,21 @@ MCP (Model Context Protocol) Server for [BringSkills](https://www.bringskills.co
 **One command to configure everything:**
 
 ```bash
-npx bringskills-mcp-server setup
+npx -y bringskills-mcp-server setup
 ```
 
 This interactive setup will:
-1. ✅ Let you choose your AI Agent
+1. ✅ Auto-detect your AI Agent when possible
 2. ✅ Validate your API Key
 3. ✅ Bind your API Key to the Agent type
 4. ✅ Write the correct configuration file
+
+Helpful commands:
+
+```bash
+npx -y bringskills-mcp-server setup --help
+npx -y bringskills-mcp-server setup --agent codex
+```
 
 ---
 

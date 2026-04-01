@@ -1,6 +1,6 @@
 {
   "name": "bringskills-mcp-server",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "MCP Server for BringSkills - AI Skills Marketplace. Use skills across Claude Code, Cursor, Codex, Windsurf, and 10+ AI agents.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -12,6 +12,7 @@
     "start": "node dist/cli.js",
     "setup": "node dist/cli.js setup",
     "dev": "ts-node src/cli.ts",
+    "test": "npm run build && node --test test/**/*.test.mjs",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -29,7 +30,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bringskills/mcp-server.git"
+    "url": "git+https://github.com/gaowei4434-bot/bringskills-mcp-server.git"
   },
   "homepage": "https://www.bringskills.com",
   "engines": {

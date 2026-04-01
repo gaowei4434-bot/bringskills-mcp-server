@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as readline from 'readline';
+import { execFileSync } from 'child_process';
 
 const API_BASE = process.env.BRINGSKILLS_API_URL || 'https://bringskills-production.up.railway.app/api/v1';
 
@@ -24,6 +25,21 @@ interface AgentConfig {
   instructions?: string;
   shellEnvVar?: boolean;  // 是否需要写入 shell 环境变量
 }
+
+interface SetupArgs {
+  help: boolean;
+  agent?: string;
+  invalidAgent?: string;
+  missingAgentValue?: boolean;
+}
+
+interface AgentDetection {
+  agent: AgentConfig;
+  reason: string;
+  score: number;
+}
+
+class SetupCliError extends Error {}
 
 const AGENT_CONFIGS: Record<string, AgentConfig> = {
   'claude-code': {
@@ -141,7 +157,7 @@ BRINGSKILLS_API_KEY = "${apiKey}"
     configFormat: 'skill',
     configTemplate: (apiKey) => `# BringSkills - AI 技能市场
 
-搜索、浏览和执行 BringSkills 市场上的 AI 技能。一��购买，所有 Agent 通用。
+搜索、浏览和执行 BringSkills 市场上的 AI 技能。一次购买，所有 Agent 通用。
 
 ## 使用场景
 
@@ -612,10 +628,257 @@ function writeConfig(configPath: string, content: string, format: 'json' | 'toml
   }
 }
 
+const AGENT_ALIASES: Record<string, string> = {
+  claude: 'claude-code',
+  cursor: 'cursor',
+  codex: 'codex',
+  windsurf: 'windsurf',
+  copilot: 'github-copilot',
+  github: 'github-copilot',
+  githubcopilot: 'github-copilot',
+  amazonq: 'amazon-q',
+  q: 'amazon-q',
+  openclaw: 'openclaw',
+  aider: 'aider',
+  cody: 'cody',
+  tabnine: 'tabnine',
+  jetbrains: 'jetbrains-ai',
+  jetbrainsai: 'jetbrains-ai',
+  replit: 'replit-ai',
+  'replit-ai': 'replit-ai',
+  replitai: 'replit-ai',
+  continue: 'continue',
+  other: 'generic',
+  generic: 'generic'
+};
+
+function normalizeAgentValue(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (AGENT_CONFIGS[normalized]) {
+    return normalized;
+  }
+
+  return AGENT_ALIASES[normalized];
+}
+
+function parseSetupArgs(): SetupArgs {
+  const rawArgs = process.argv[2] === 'setup' ? process.argv.slice(3) : process.argv.slice(2);
+  const parsed: SetupArgs = { help: false };
+
+  for (let i = 0; i < rawArgs.length; i++) {
+    const arg = rawArgs[i];
+
+    if (arg === '--help' || arg === '-h') {
+      parsed.help = true;
+      continue;
+    }
+
+    if (arg === '--agent') {
+      const candidate = rawArgs[i + 1];
+      if (!candidate || candidate.startsWith('-')) {
+        parsed.missingAgentValue = true;
+        continue;
+      }
+      const normalized = normalizeAgentValue(candidate);
+      if (!normalized) {
+        parsed.invalidAgent = candidate;
+      } else {
+        parsed.agent = normalized;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (arg.startsWith('--agent=')) {
+      const candidate = arg.slice('--agent='.length);
+      const normalized = normalizeAgentValue(candidate);
+      if (!normalized) {
+        parsed.invalidAgent = candidate;
+      } else {
+        parsed.agent = normalized;
+      }
+    }
+  }
+
+  return parsed;
+}
+
+function printHelp(): void {
+  console.log('\nBringSkills Setup\n');
+  console.log('Usage:');
+  console.log('  npx -y bringskills-mcp-server setup');
+  console.log('  npx -y bringskills-mcp-server setup --agent <type>');
+  console.log('  npx -y bringskills-mcp-server setup --help');
+  console.log('');
+  console.log('Supported agents:');
+  Object.values(AGENT_CONFIGS).forEach((agent) => {
+    console.log(`  - ${agent.value.padEnd(14)} ${agent.name}`);
+  });
+}
+
+function resolveConfigPath(agent: AgentConfig, home: string): string {
+  return typeof agent.configPath === 'function'
+    ? agent.configPath(home)
+    : agent.configPath;
+}
+
+function getProcessCommand(pid: number): string {
+  try {
+    return execFileSync('ps', ['-p', String(pid), '-o', 'command='], {
+      encoding: 'utf-8'
+    }).trim().toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function getParentPid(pid: number): number | null {
+  try {
+    const output = execFileSync('ps', ['-p', String(pid), '-o', 'ppid='], {
+      encoding: 'utf-8'
+    }).trim();
+    const parentPid = Number.parseInt(output, 10);
+    return Number.isFinite(parentPid) ? parentPid : null;
+  } catch {
+    return null;
+  }
+}
+
+function getAncestorCommands(maxDepth = 5): string[] {
+  const commands: string[] = [];
+  const seen = new Set<number>();
+  let currentPid: number | null = process.ppid;
+
+  while (currentPid && currentPid > 1 && commands.length < maxDepth && !seen.has(currentPid)) {
+    seen.add(currentPid);
+    const command = getProcessCommand(currentPid);
+    if (command) {
+      commands.push(command);
+    }
+    currentPid = getParentPid(currentPid);
+  }
+
+  return commands;
+}
+
+function maybeAddDetection(
+  detections: Map<string, AgentDetection>,
+  agentKey: string,
+  reason: string,
+  score: number
+): void {
+  const existing = detections.get(agentKey);
+  if (existing && existing.score >= score) {
+    return;
+  }
+
+  const agent = AGENT_CONFIGS[agentKey];
+  if (!agent) {
+    return;
+  }
+
+  detections.set(agentKey, { agent, reason, score });
+}
+
+function detectAgents(home: string): AgentDetection[] {
+  const detections = new Map<string, AgentDetection>();
+  const ancestorCommands = getAncestorCommands();
+  const joinedCommands = ancestorCommands.join('\n');
+
+  if (joinedCommands.includes('cursor')) {
+    maybeAddDetection(detections, 'cursor', '当前终端进程链包含 Cursor', 100);
+  }
+  if (joinedCommands.includes('claude')) {
+    maybeAddDetection(detections, 'claude-code', '当前终端进程链包含 Claude', 100);
+  }
+  if (joinedCommands.includes('codex')) {
+    maybeAddDetection(detections, 'codex', '当前终端进程链包含 Codex', 100);
+  }
+  if (joinedCommands.includes('windsurf') || joinedCommands.includes('codeium')) {
+    maybeAddDetection(detections, 'windsurf', '当前终端进程链包含 Windsurf/Codeium', 100);
+  }
+  if (joinedCommands.includes('amazon q') || joinedCommands.includes('amazonq')) {
+    maybeAddDetection(detections, 'amazon-q', '当前终端进程链包含 Amazon Q', 100);
+  }
+  if (joinedCommands.includes('openclaw')) {
+    maybeAddDetection(detections, 'openclaw', '当前终端进程链包含 OpenClaw', 100);
+  }
+  if (joinedCommands.includes('visual studio code') || joinedCommands.includes('/code ') || joinedCommands.includes('/code\n')) {
+    maybeAddDetection(detections, 'github-copilot', '当前终端进程链包含 VS Code', 70);
+  }
+
+  const configSignals: Array<{ agentKey: string; pathToCheck: string; score: number }> = [
+    { agentKey: 'claude-code', pathToCheck: resolveConfigPath(AGENT_CONFIGS['claude-code'], home), score: 80 },
+    { agentKey: 'cursor', pathToCheck: resolveConfigPath(AGENT_CONFIGS['cursor'], home), score: 80 },
+    { agentKey: 'codex', pathToCheck: resolveConfigPath(AGENT_CONFIGS['codex'], home), score: 80 },
+    { agentKey: 'windsurf', pathToCheck: resolveConfigPath(AGENT_CONFIGS['windsurf'], home), score: 80 },
+    { agentKey: 'github-copilot', pathToCheck: resolveConfigPath(AGENT_CONFIGS['github-copilot'], home), score: 75 },
+    { agentKey: 'amazon-q', pathToCheck: resolveConfigPath(AGENT_CONFIGS['amazon-q'], home), score: 80 },
+    { agentKey: 'openclaw', pathToCheck: path.join(home, '.agents'), score: 80 }
+  ];
+
+  for (const signal of configSignals) {
+    if (signal.pathToCheck && fs.existsSync(signal.pathToCheck)) {
+      maybeAddDetection(
+        detections,
+        signal.agentKey,
+        `检测到本机已有 ${signal.pathToCheck}`,
+        signal.score
+      );
+    }
+  }
+
+  if (process.env.CODEX_HOME) {
+    maybeAddDetection(detections, 'codex', '检测到 CODEX_HOME 环境变量', 95);
+  }
+
+  return Array.from(detections.values()).sort((a, b) => b.score - a.score);
+}
+
+async function selectAgentInteractively(rl: readline.Interface): Promise<AgentConfig | undefined> {
+  console.log('\n📋 支持的 AI Agent:\n');
+  const agents = Object.values(AGENT_CONFIGS);
+  agents.forEach((agent, i) => {
+    const mcpStatus = agent.supportsMcp ? '✅ MCP' : '❌ 无MCP';
+    console.log(`  ${i + 1}. ${agent.name} (${mcpStatus})`);
+  });
+
+  const agentIndex = await question(rl, '\n请选择你的 Agent (输入数字): ');
+  return agents[Number.parseInt(agentIndex, 10) - 1];
+}
+
+async function confirmWithDefaultYes(rl: readline.Interface, prompt: string): Promise<boolean> {
+  const answer = (await question(rl, prompt)).toLowerCase();
+  return answer === '' || answer === 'y' || answer === 'yes';
+}
+
 // 主函数
 async function main() {
-  // 直接运行 setup（cli.ts 已经处理了命令分发）
-  
+  const args = parseSetupArgs();
+
+  if (args.help) {
+    printHelp();
+    return;
+  }
+
+  if (args.missingAgentValue) {
+    console.log('❌ --agent 需要一个值，例如 --agent codex');
+    console.log('');
+    printHelp();
+    throw new SetupCliError('missing-agent-value');
+  }
+
+  if (args.invalidAgent) {
+    console.log(`❌ 不支持的 agent: ${args.invalidAgent}`);
+    console.log('');
+    printHelp();
+    throw new SetupCliError('invalid-agent');
+  }
+
   console.log('\n🔧 BringSkills Setup\n');
   console.log('=' .repeat(50));
   
@@ -623,21 +886,46 @@ async function main() {
   const home = os.homedir();
   
   try {
-    // 1. 选择 Agent 类型
-    console.log('\n📋 支持的 AI Agent:\n');
-    const agents = Object.values(AGENT_CONFIGS);
-    agents.forEach((agent, i) => {
-      const mcpStatus = agent.supportsMcp ? '✅ MCP' : '❌ 无MCP';
-      console.log(`  ${i + 1}. ${agent.name} (${mcpStatus})`);
-    });
-    
-    const agentIndex = await question(rl, '\n请选择你的 Agent (输入数字): ');
-    const selectedAgent = agents[parseInt(agentIndex) - 1];
-    
+    // 1. 自动识别 Agent，必要时回退手选
+    let selectedAgent: AgentConfig | undefined;
+
+    if (args.agent) {
+      selectedAgent = AGENT_CONFIGS[args.agent];
+      console.log(`\n✅ 已使用 --agent: ${selectedAgent.name}`);
+    } else {
+      const detections = detectAgents(home);
+
+      if (detections.length > 0) {
+        const [bestMatch, secondMatch] = detections;
+        const canAutoSelect = !secondMatch || bestMatch.score > secondMatch.score;
+
+        if (canAutoSelect) {
+          console.log(`\n🔎 Detected ${bestMatch.agent.name}`);
+          console.log(`   原因: ${bestMatch.reason}`);
+          const confirmed = await confirmWithDefaultYes(
+            rl,
+            `   Continue with ${bestMatch.agent.name}? [Y/n] `
+          );
+
+          if (confirmed) {
+            selectedAgent = bestMatch.agent;
+          }
+        } else {
+          console.log('\n⚠️  检测到多个可能的 Agent 环境，改为手动选择:');
+          detections.slice(0, 3).forEach((detection) => {
+            console.log(`   - ${detection.agent.name}: ${detection.reason}`);
+          });
+        }
+      }
+
+      if (!selectedAgent) {
+        selectedAgent = await selectAgentInteractively(rl);
+      }
+    }
+
     if (!selectedAgent) {
       console.log('❌ 无效的选择');
-      rl.close();
-      return;
+      throw new SetupCliError('invalid-selection');
     }
     
     console.log(`\n✅ 已选择: ${selectedAgent.name}`);
@@ -652,8 +940,7 @@ async function main() {
     
     if (!apiKey.startsWith('sk-bring-')) {
       console.log('❌ 无效的 API Key 格式，应以 sk-bring- 开头');
-      rl.close();
-      return;
+      throw new SetupCliError('invalid-api-key-format');
     }
     
     // 4. 验证 API Key
@@ -662,8 +949,7 @@ async function main() {
     
     if (!isValid) {
       console.log('❌ API Key 无效或已过期');
-      rl.close();
-      return;
+      throw new SetupCliError('invalid-api-key');
     }
     console.log('✅ API Key 有效');
     
@@ -690,7 +976,8 @@ async function main() {
       if (writeResult.success) {
         console.log(`✅ ${writeResult.message}`);
       } else {
-        console.log(`��� ${writeResult.message}`);
+        console.log(`❌ ${writeResult.message}`);
+        throw new SetupCliError('write-config-failed');
       }
     }
     
@@ -717,7 +1004,7 @@ async function main() {
     
     if (selectedAgent.supportsMcp) {
       console.log(`\n请重启 ${selectedAgent.name} 开始使用 BringSkills。`);
-      console.log('\n测试: 在 Agent 中输入 "搜索 BringSkills 技能"');
+      console.log('\n现在去 Agent 里输入: "搜索 BringSkills 技能"');
     } else {
       console.log(`\n${selectedAgent.name} 已配置完成。`);
       console.log('请查看上方说明了解如何使用 BringSkills API。');
@@ -769,4 +1056,11 @@ function writeShellEnvVar(apiKey: string, home: string): { success: boolean; mes
 }
 
 // 运行
-main().catch(console.error);
+main().catch((error) => {
+  if (error instanceof SetupCliError) {
+    process.exit(1);
+  }
+
+  console.error(error);
+  process.exit(1);
+});
