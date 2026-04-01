@@ -4,13 +4,20 @@
  * Handles all communication with the BringSkills API
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BringSkillsClient = void 0;
+exports.BringSkillsClient = exports.DEFAULT_API_ORIGIN = void 0;
+exports.DEFAULT_API_ORIGIN = 'https://api.bringskills.com';
+function normalizeBaseUrl(baseUrl) {
+    const trimmed = baseUrl.replace(/\/+$/, '');
+    return trimmed.endsWith('/api/v1')
+        ? trimmed.slice(0, -'/api/v1'.length)
+        : trimmed;
+}
 class BringSkillsClient {
     baseUrl;
     apiKey;
-    constructor(apiKey, baseUrl = 'https://bringskills-production.up.railway.app') {
+    constructor(apiKey, baseUrl = exports.DEFAULT_API_ORIGIN) {
         this.apiKey = apiKey;
-        this.baseUrl = baseUrl;
+        this.baseUrl = normalizeBaseUrl(baseUrl);
     }
     async request(endpoint, options = {}) {
         const url = `${this.baseUrl}${endpoint}`;
@@ -19,16 +26,12 @@ class BringSkillsClient {
             'Authorization': `Bearer ${this.apiKey}`,
             ...(options.headers || {}),
         };
-        // Debug: log request details to stderr
-        console.error(`[DEBUG] Request: ${options.method || 'GET'} ${url}`);
-        console.error(`[DEBUG] Auth header: Bearer ${this.apiKey.substring(0, 15)}...`);
         const response = await fetch(url, {
             ...options,
             headers,
         });
         if (!response.ok) {
             const error = await response.json().catch(() => ({ detail: response.statusText }));
-            console.error(`[DEBUG] Error response: ${JSON.stringify(error)}`);
             throw new Error(error.detail || `API Error: ${response.status}`);
         }
         return response.json();
@@ -113,7 +116,7 @@ class BringSkillsClient {
      */
     async validateApiKey() {
         try {
-            await this.request('/api/v1/users/me');
+            await this.request('/api/v1/auth/me');
             return true;
         }
         catch {

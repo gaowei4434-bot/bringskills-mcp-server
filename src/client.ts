@@ -50,13 +50,22 @@ export interface UserSkill {
   acquired_at: string;
 }
 
+export const DEFAULT_API_ORIGIN = 'https://api.bringskills.com';
+
+function normalizeBaseUrl(baseUrl: string): string {
+  const trimmed = baseUrl.replace(/\/+$/, '');
+  return trimmed.endsWith('/api/v1')
+    ? trimmed.slice(0, -'/api/v1'.length)
+    : trimmed;
+}
+
 export class BringSkillsClient {
   private baseUrl: string;
   private apiKey: string;
 
-  constructor(apiKey: string, baseUrl: string = 'https://bringskills-production.up.railway.app') {
+  constructor(apiKey: string, baseUrl: string = DEFAULT_API_ORIGIN) {
     this.apiKey = apiKey;
-    this.baseUrl = baseUrl;
+    this.baseUrl = normalizeBaseUrl(baseUrl);
   }
 
   private async request<T>(
@@ -70,10 +79,6 @@ export class BringSkillsClient {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    // Debug: log request details to stderr
-    console.error(`[DEBUG] Request: ${options.method || 'GET'} ${url}`);
-    console.error(`[DEBUG] Auth header: Bearer ${this.apiKey.substring(0, 15)}...`);
-
     const response = await fetch(url, {
       ...options,
       headers,
@@ -81,7 +86,6 @@ export class BringSkillsClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: response.statusText })) as { detail?: string };
-      console.error(`[DEBUG] Error response: ${JSON.stringify(error)}`);
       throw new Error(error.detail || `API Error: ${response.status}`);
     }
 
@@ -182,7 +186,7 @@ export class BringSkillsClient {
    */
   async validateApiKey(): Promise<boolean> {
     try {
-      await this.request('/api/v1/users/me');
+      await this.request('/api/v1/auth/me');
       return true;
     } catch {
       return false;

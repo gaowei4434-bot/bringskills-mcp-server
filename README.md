@@ -270,17 +270,17 @@ Once configured, your AI agent can use BringSkills naturally:
 
 For agents that don't support MCP, use the HTTP API directly:
 
-**Base URL:** `https://bringskills-production.up.railway.app/api/v1/`
+**Base URL:** `https://api.bringskills.com/api/v1`
 
-**Authentication:** `X-API-Key: sk-bring-xxx`
+**Authentication:** `Authorization: Bearer sk-bring-xxx`
 
 **Example:**
 ```bash
-curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills?q=code+review" \
-  -H "X-API-Key: sk-bring-xxx"
+curl -X GET "https://api.bringskills.com/api/v1/skills?search=code+review" \
+  -H "Authorization: Bearer sk-bring-xxx"
 ```
 
-**API Documentation:** [bringskills.com/docs/api](https://www.bringskills.com/docs/api)
+**API Documentation:** [bringskills.com/docs](https://www.bringskills.com/docs)
 
 ---
 
@@ -297,7 +297,7 @@ curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills?q=code+
 
 ### "API key not found"
 - Ensure `BRINGSKILLS_API_KEY` is set in your config
-- Run `npx bringskills-mcp-server setup` to reconfigure
+- Run `npx -y bringskills-mcp-server setup` to reconfigure
 
 ### "Agent not confirmed"
 - Run `bringskills_confirm_agent` to bind your API key
@@ -305,7 +305,7 @@ curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills?q=code+
 ### MCP server not loading
 1. Check config file location for your agent
 2. Validate JSON/TOML syntax
-3. Test manually: `BRINGSKILLS_API_KEY="sk-bring-xxx" npx bringskills-mcp-server`
+3. Test manually: `BRINGSKILLS_API_KEY="sk-bring-xxx" npx -y bringskills-mcp-server`
 
 ### Clear npx cache
 ```bash
@@ -318,7 +318,7 @@ rm -rf ~/.npm/_npx
 
 - **Website:** [bringskills.com](https://www.bringskills.com)
 - **Get API Key:** [bringskills.com/settings/api-keys](https://www.bringskills.com/settings/api-keys)
-- **API Docs:** [bringskills.com/docs/api](https://www.bringskills.com/docs/api)
+- **API Docs:** [bringskills.com/docs](https://www.bringskills.com/docs)
 - **Support:** support@bringskills.com
 
 ---
@@ -326,7 +326,7 @@ rm -rf ~/.npm/_npx
 ## 📝 Changelog
 
 ### v1.2.0
-- Added: Interactive setup command (`npx bringskills-mcp-server setup`)
+- Added: Interactive setup command (`npx -y bringskills-mcp-server setup`)
 - Added: Support for 7 MCP-compatible agents
 - Fixed: Codex CLI config format (TOML, not JSON)
 - Updated: Complete documentation for all 13 agents

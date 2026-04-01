@@ -44,6 +44,7 @@ export interface UserSkill {
     skill: Skill;
     acquired_at: string;
 }
+export declare const DEFAULT_API_ORIGIN = "https://api.bringskills.com";
 export declare class BringSkillsClient {
     private baseUrl;
     private apiKey;

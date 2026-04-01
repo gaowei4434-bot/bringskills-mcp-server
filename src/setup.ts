@@ -3,7 +3,7 @@
  * BringSkills Setup CLI
  * 一条命令完成 Agent 配置
  * 
- * 用法: npx bringskills-mcp-server setup [--agent <type>]
+ * 用法: npx -y bringskills-mcp-server setup [--agent <type>]
  */
 
 import * as fs from 'fs';
@@ -12,7 +12,19 @@ import * as os from 'os';
 import * as readline from 'readline';
 import { execFileSync } from 'child_process';
 
-const API_BASE = process.env.BRINGSKILLS_API_URL || 'https://bringskills-production.up.railway.app/api/v1';
+const PUBLIC_DOCS_URL = 'https://www.bringskills.com/docs';
+const DEFAULT_API_BASE = 'https://api.bringskills.com/api/v1';
+
+function normalizeApiBase(value: string | undefined): string {
+  if (!value) {
+    return DEFAULT_API_BASE;
+  }
+
+  const trimmed = value.trim().replace(/\/+$/, '');
+  return trimmed.endsWith('/api/v1') ? trimmed : `${trimmed}/api/v1`;
+}
+
+const API_BASE = normalizeApiBase(process.env.BRINGSKILLS_API_URL);
 
 // Agent 配置信息
 interface AgentConfig {
@@ -171,16 +183,16 @@ BRINGSKILLS_API_KEY = "${apiKey}"
 
 ## API 端点
 
-- Base URL: \`https://bringskills-production.up.railway.app/api/v1\`
-- 认证: \`X-API-Key: $BRINGSKILLS_API_KEY\`
+- Base URL: \`${DEFAULT_API_BASE}\`
+- 认证: \`Authorization: Bearer $BRINGSKILLS_API_KEY\`
 
 ## 可用操作
 
 ### 1. 搜索技能
 
 \`\`\`bash
-curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills?q=text&limit=10" \\
-  -H "X-API-Key: $BRINGSKILLS_API_KEY"
+curl -X GET "${DEFAULT_API_BASE}/skills?search=text&limit=10" \\
+  -H "Authorization: Bearer $BRINGSKILLS_API_KEY"
 \`\`\`
 
 返回匹配的技能列表，包含 name, slug, description, price, rating 等字段。
@@ -188,15 +200,15 @@ curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills?q=text&
 ### 2. 获取技能详情
 
 \`\`\`bash
-curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills/{slug}" \\
-  -H "X-API-Key: $BRINGSKILLS_API_KEY"
+curl -X GET "${DEFAULT_API_BASE}/skills/slug/{skill-slug}" \\
+  -H "Authorization: Bearer $BRINGSKILLS_API_KEY"
 \`\`\`
 
 ### 3. 执行技能
 
 \`\`\`bash
-curl -X POST "https://bringskills-production.up.railway.app/api/v1/skills/{slug}/execute" \\
-  -H "X-API-Key: $BRINGSKILLS_API_KEY" \\
+curl -X POST "${DEFAULT_API_BASE}/skills/slug/{skill-slug}/execute" \\
+  -H "Authorization: Bearer $BRINGSKILLS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"input": {"text": "要处理的内容"}}'
 \`\`\`
@@ -204,15 +216,15 @@ curl -X POST "https://bringskills-production.up.railway.app/api/v1/skills/{slug}
 ### 4. 查看我的技能
 
 \`\`\`bash
-curl -X GET "https://bringskills-production.up.railway.app/api/v1/orders" \\
-  -H "X-API-Key: $BRINGSKILLS_API_KEY"
+curl -X GET "${DEFAULT_API_BASE}/orders" \\
+  -H "Authorization: Bearer $BRINGSKILLS_API_KEY"
 \`\`\`
 
 ### 5. 获取免费技能
 
 \`\`\`bash
-curl -X POST "https://bringskills-production.up.railway.app/api/v1/orders/free" \\
-  -H "X-API-Key: $BRINGSKILLS_API_KEY" \\
+curl -X POST "${DEFAULT_API_BASE}/orders/free" \\
+  -H "Authorization: Bearer $BRINGSKILLS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"skill_slug": "技能slug"}'
 \`\`\`
@@ -256,22 +268,22 @@ export BRINGSKILLS_API_KEY="${apiKey}"
 
 ### 搜索技能
 \`\`\`bash
-curl -X GET "https://bringskills-production.up.railway.app/api/v1/skills?q=YOUR_QUERY" \\
-  -H "X-API-Key: $BRINGSKILLS_API_KEY"
+curl -X GET "${DEFAULT_API_BASE}/skills?search=YOUR_QUERY" \\
+  -H "Authorization: Bearer $BRINGSKILLS_API_KEY"
 \`\`\`
 
 ### 执行技能
 \`\`\`bash
-curl -X POST "https://bringskills-production.up.railway.app/api/v1/skills/SKILL_ID/execute" \\
-  -H "X-API-Key: $BRINGSKILLS_API_KEY" \\
+curl -X POST "${DEFAULT_API_BASE}/skills/slug/SKILL_SLUG/execute" \\
+  -H "Authorization: Bearer $BRINGSKILLS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"input": {"text": "your input"}}'
 \`\`\`
 
 ### 获取我的技能
 \`\`\`bash
-curl -X GET "https://bringskills-production.up.railway.app/api/v1/users/me/skills" \\
-  -H "X-API-Key: $BRINGSKILLS_API_KEY"
+curl -X GET "${DEFAULT_API_BASE}/orders" \\
+  -H "Authorization: Bearer $BRINGSKILLS_API_KEY"
 \`\`\`
 
 ## Python 代码示例
@@ -280,18 +292,18 @@ import os
 import requests
 
 API_KEY = os.environ.get("BRINGSKILLS_API_KEY")
-BASE_URL = "https://bringskills-production.up.railway.app/api/v1"
+BASE_URL = "${DEFAULT_API_BASE}"
 
 def search_skills(query):
     resp = requests.get(f"{BASE_URL}/skills", 
-                       params={"q": query},
-                       headers={"X-API-Key": API_KEY})
+                       params={"search": query},
+                       headers={"Authorization": f"Bearer {API_KEY}"})
     return resp.json()
 
 def execute_skill(skill_id, input_data):
-    resp = requests.post(f"{BASE_URL}/skills/{skill_id}/execute",
+    resp = requests.post(f"{BASE_URL}/skills/slug/{skill_id}/execute",
                         json={"input": input_data},
-                        headers={"X-API-Key": API_KEY})
+                        headers={"Authorization": f"Bearer {API_KEY}"})
     return resp.json()
 \`\`\`
 
@@ -313,11 +325,11 @@ def execute_skill(skill_id, input_data):
       "commands": {
         "bringskills-search": {
           "description": "Search BringSkills marketplace",
-          "prompt": "Use the BringSkills API to search for skills. API Key is in environment variable BRINGSKILLS_API_KEY. Base URL: https://bringskills-production.up.railway.app/api/v1/skills?q={query}"
+          "prompt": "Use the BringSkills API to search for skills. API key is in BRINGSKILLS_API_KEY. Send Authorization: Bearer $BRINGSKILLS_API_KEY to ${DEFAULT_API_BASE}/skills?search={query}"
         },
         "bringskills-execute": {
           "description": "Execute a BringSkills skill",
-          "prompt": "Use the BringSkills API to execute a skill. POST to https://bringskills-production.up.railway.app/api/v1/skills/{skill_id}/execute with X-API-Key header."
+          "prompt": "Use the BringSkills API to execute a skill. POST to ${DEFAULT_API_BASE}/skills/slug/{skill-slug}/execute with Authorization: Bearer $BRINGSKILLS_API_KEY."
         }
       },
       "usage": "Copy these commands to your Cody custom commands configuration"
@@ -347,11 +359,11 @@ export BRINGSKILLS_API_KEY="${apiKey}"
 \`\`\`python
 # Call BringSkills API to search for skills about "code review"
 # Use requests library, API key from environment variable BRINGSKILLS_API_KEY
-# Base URL: https://bringskills-production.up.railway.app/api/v1
+# Base URL: ${DEFAULT_API_BASE}
 \`\`\`
 
 ## API 文档
-https://www.bringskills.com/docs/api
+${PUBLIC_DOCS_URL}
 `,
     instructions: '已创建使用指南: ~/.bringskills/tabnine-guide.md',
     shellEnvVar: true
@@ -372,21 +384,21 @@ import java.net.URL
 
 object BringSkillsClient {
     private val apiKey = System.getenv("BRINGSKILLS_API_KEY") ?: "${apiKey}"
-    private const val baseUrl = "https://bringskills-production.up.railway.app/api/v1"
+    private const val baseUrl = "${DEFAULT_API_BASE}"
 
     fun searchSkills(query: String): String {
-        val url = URL("\$baseUrl/skills?q=\$query")
+        val url = URL("\$baseUrl/skills?search=\$query")
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "GET"
-        conn.setRequestProperty("X-API-Key", apiKey)
+        conn.setRequestProperty("Authorization", "Bearer \$apiKey")
         return conn.inputStream.bufferedReader().readText()
     }
 
     fun executeSkill(skillId: String, input: Map<String, Any>): String {
-        val url = URL("\$baseUrl/skills/\$skillId/execute")
+        val url = URL("\$baseUrl/skills/slug/\$skillId/execute")
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "POST"
-        conn.setRequestProperty("X-API-Key", apiKey)
+        conn.setRequestProperty("Authorization", "Bearer \$apiKey")
         conn.setRequestProperty("Content-Type", "application/json")
         conn.doOutput = true
         // Add JSON body serialization here
@@ -422,20 +434,20 @@ import os
 import requests
 
 API_KEY = os.environ["BRINGSKILLS_API_KEY"]
-BASE_URL = "https://bringskills-production.up.railway.app/api/v1"
+BASE_URL = "${DEFAULT_API_BASE}"
 
 # 搜索技能
 def search_skills(query):
     resp = requests.get(f"{BASE_URL}/skills", 
-                       params={"q": query},
-                       headers={"X-API-Key": API_KEY})
+                       params={"search": query},
+                       headers={"Authorization": f"Bearer {API_KEY}"})
     return resp.json()
 
 # 执行技能
 def execute_skill(skill_id, input_data):
-    resp = requests.post(f"{BASE_URL}/skills/{skill_id}/execute",
+    resp = requests.post(f"{BASE_URL}/skills/slug/{skill_id}/execute",
                         json={"input": input_data},
-                        headers={"X-API-Key": API_KEY})
+                        headers={"Authorization": f"Bearer {API_KEY}"})
     return resp.json()
 
 # 示例
@@ -446,20 +458,20 @@ print(skills)
 ### JavaScript/Node.js
 \`\`\`javascript
 const API_KEY = process.env.BRINGSKILLS_API_KEY;
-const BASE_URL = "https://bringskills-production.up.railway.app/api/v1";
+const BASE_URL = "${DEFAULT_API_BASE}";
 
 async function searchSkills(query) {
-  const resp = await fetch(\`\${BASE_URL}/skills?q=\${query}\`, {
-    headers: { "X-API-Key": API_KEY }
+  const resp = await fetch(\`\${BASE_URL}/skills?search=\${query}\`, {
+    headers: { "Authorization": \`Bearer \${API_KEY}\` }
   });
   return resp.json();
 }
 
 async function executeSkill(skillId, input) {
-  const resp = await fetch(\`\${BASE_URL}/skills/\${skillId}/execute\`, {
+  const resp = await fetch(\`\${BASE_URL}/skills/slug/\${skillId}/execute\`, {
     method: "POST",
     headers: { 
-      "X-API-Key": API_KEY,
+      "Authorization": \`Bearer \${API_KEY}\`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({ input })
@@ -533,7 +545,7 @@ async function validateApiKey(apiKey: string): Promise<boolean> {
   try {
     const response = await fetch(`${API_BASE}/skills?limit=1`, {
       headers: {
-        'X-API-Key': apiKey
+        'Authorization': `Bearer ${apiKey}`
       }
     });
     return response.ok;
@@ -1009,7 +1021,7 @@ async function main() {
       console.log(`\n${selectedAgent.name} 已配置完成。`);
       console.log('请查看上方说明了解如何使用 BringSkills API。');
     }
-    console.log('\n文档: https://www.bringskills.com/docs');
+    console.log(`\n文档: ${PUBLIC_DOCS_URL}`);
     
   } finally {
     rl.close();
